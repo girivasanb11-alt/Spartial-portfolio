@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GIRIVASAN B | Spatial Portfolio</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <style>
+        :root {
+            --bg-dark: #050508;
+            --electric-blue: #00f0ff;
+            --pure-white: #ffffff;
+            --glass-bg: rgba(15, 23, 42, 0.3);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body, html {
+            width: 100%;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Space Grotesk', sans-serif;
+            cursor: none;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+
+        ::-webkit-scrollbar { display: none; }
+
+        /* WebGL Background */
+        #webgl-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* New Canvas exclusively for the 3D Cursor to float above text */
+        #cursor-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: 9999;
+            pointer-events: none;
+        }
+
+        /* 3D Loading Sequence Layer */
+        #loader {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background-color: #000;
+            z-index: 10000; /* Brought up slightly above cursor */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        #loader-percentage {
+            font-size: 8rem;
+            font-weight: 700;
+            color: var(--pure-white);
+            font-variant-numeric: tabular-nums;
+            z-index: 2;
+            letter-spacing: -0.05em;
+            text-shadow: 0 0 20px rgba(255,255,255,0.8);
+        }
+
+        .loader-text {
+            font-size: 1.2rem;
+            letter-spacing: 0.6em;
+            color: #aaa;
+            text-transform: uppercase;
+            z-index: 2;
+            margin-top: -10px;
+        }
+
+        #loader-canvas-container {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1;
+        }
+
+        /* Main UI Layer */
+        #ui-layer {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            pointer-events: none;
+            opacity: 0; 
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        /* Header Navigation */
+        nav {
+            position: fixed;
+            top: 0; left: 0; width: 100%;
+            padding: 1.5rem 4rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            background: linear-gradient(to bottom, rgba(5,5,8,0.9) 0%, rgba(5,5,8,0) 100%);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .logo {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--text-main);
+            text-decoration: none;
+            text-shadow: 0 0 10px rgba(255,255,255,0.3);
+        }
+
+        .nav-links { display: flex; gap: 2.5rem; }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            transition: color 0.3s, text-shadow 0.3s;
+        }
+
+        .nav-links a:hover { 
+            color: var(--pure-white); 
+            text-shadow: 0 0 10px rgba(255,255,255,0.8);
+        }
+
+        /* Social Sidebar */
+        aside.social-sidebar {
+            position: fixed;
+            left: 2.5rem; top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            z-index: 100;
+        }
+
+        aside.social-sidebar a {
+            color: var(--text-muted);
+            font-size: 1.8rem;
+            transition: all 0.3s ease;
+        }
+
+        aside.social-sidebar a:hover {
+            color: var(--pure-white);
+            transform: scale(1.1);
+            text-shadow: 0 0 20px rgba(255,255,255,0.8);
+        }
+
+        /* Resume Button */
+        .resume-btn {
+            position: fixed;
+            bottom: 3rem; right: 3rem;
+            width: 60px; height: 60px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--pure-white);
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-decoration: none;
+            z-index: 100;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+        }
+
+        .resume-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
+            transform: scale(1.1);
+        }
+
+        /* Sections */
+        section {
+            min-height: auto; 
+            padding: 5rem 15% 4rem 15%; /* Balanced padding: not too tight, not too far apart */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* Hero Section Adjustments */
+        #hero {
+            min-height: auto;
+            padding-top: 15vh;
+            padding-bottom: 2rem; 
+            align-items: center;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: clamp(4rem, 8vw, 7rem);
+            line-height: 1.1;
+            margin-bottom: 1rem;
+            letter-spacing: -0.04em;
+            color: var(--pure-white);
+            text-shadow: 0 0 30px rgba(255,255,255,0.2);
+        }
+
+        h2 {
+            font-size: clamp(2.5rem, 5vw, 3.5rem);
+            margin-bottom: 3rem;
+            color: var(--pure-white);
+            letter-spacing: -0.02em;
+        }
+
+        h3 {
+            font-size: 1.5rem;
+            color: var(--pure-white);
+            margin-bottom: 1rem;
+            letter-spacing: 0.05em;
+        }
+
+        p {
+            font-size: 1.15rem;
+            line-height: 1.7;
+            color: var(--text-muted);
+            max-width: 800px;
+        }
+
+        .subtitle {
+            font-size: 1.5rem;
+            color: var(--electric-blue);
+            margin-bottom: 0; 
+            font-weight: 300;
+        }
+
+        /* Profile Circular Image Frame */
+        .profile-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            margin: 2rem 0; 
+        }
+
+        .profile-frame {
+            width: 250px;
+            height: 250px;
+            position: relative;
+            border-radius: 50%;
+            background: rgba(10, 10, 20, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .profile-frame::before {
+            content: '';
+            position: absolute;
+            top: -6px; right: -6px; bottom: -6px; left: -6px; 
+            border-radius: 50%;
+            background: conic-gradient(
+                from 0deg, 
+                transparent 0%, 
+                rgba(0, 240, 255, 0.2) 20%,
+                rgba(0, 240, 255, 1) 40%, 
+                rgba(0, 240, 255, 0.2) 60%, 
+                transparent 80%
+            );
+            animation: spinFire 2s linear infinite, colorPulse 8s linear infinite;
+            z-index: -1; 
+            filter: blur(8px); 
+        }
+
+        .profile-frame::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.2);
+            box-shadow: inset 0 0 20px rgba(0, 240, 255, 0.3);
+            pointer-events: none;
+            z-index: 5;
+            animation: colorPulseBox 8s linear infinite;
+        }
+
+        .profile-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: top center; 
+            border-radius: 50%; 
+            z-index: 1;
+        }
+
+        @keyframes spinFire {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes colorPulse {
+            0% { filter: blur(8px) hue-rotate(0deg); }
+            100% { filter: blur(8px) hue-rotate(360deg); }
+        }
+
+        @keyframes colorPulseBox {
+            0% { box-shadow: inset 0 0 20px rgba(0, 240, 255, 0.3); }
+            33% { box-shadow: inset 0 0 20px rgba(168, 85, 247, 0.3); }
+            66% { box-shadow: inset 0 0 20px rgba(16, 185, 129, 0.3); }
+            100% { box-shadow: inset 0 0 20px rgba(0, 240, 255, 0.3); }
+        }
+
+        /* Adjusted About Section */
+        #about {
+            min-height: auto;
+            padding-top: 0; 
+            align-items: center; 
+            text-align: center;
+        }
+
+        /* Justifies the text in About Me so the lines are equal */
+        #about p {
+            text-align: justify;
+        }
+
+        /* Glassmorphic Components */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 3rem;
+            transition: transform 0.3s, border-color 0.3s, background 0.3s;
+            width: 100%;
+        }
+
+        .glass-panel:hover {
+            border-color: rgba(255, 255, 255, 0.3);
+            background: rgba(15, 23, 42, 0.5);
+            transform: translateY(-5px);
+        }
+
+        /* Grids */
+        .skills-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            width: 100%;
+        }
+
+        .skill-item h4 {
+            color: var(--pure-white);
+            margin-bottom: 0.8rem;
+            font-size: 1.2rem;
+        }
+
+        .cert-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+            width: 100%;
+        }
+
+        .cert-card {
+            background: rgba(255,255,255,0.03);
+            border-left: 3px solid rgba(255,255,255,0.5);
+            padding: 1.5rem;
+            border-radius: 0 8px 8px 0;
+            color: var(--text-muted);
+            transition: all 0.3s ease;
+        }
+
+        .cert-card:hover {
+            background: rgba(255,255,255,0.08);
+            border-left-color: var(--pure-white);
+            color: var(--pure-white);
+        }
+
+        .contact-info {
+            font-size: 1.3rem;
+            color: var(--pure-white);
+            margin-bottom: 1rem;
+        }
+
+    </style>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://esm.sh/three@0.160.0",
+                "gsap": "https://esm.sh/gsap@3.12.5",
+                "gsap/ScrollTrigger": "https://esm.sh/gsap@3.12.5/ScrollTrigger"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <canvas id="webgl-canvas"></canvas>
+    <canvas id="cursor-canvas"></canvas>
+
+    <div id="loader">
+        <canvas id="loader-canvas-container"></canvas>
+        <div id="loader-percentage">0</div>
+        <div class="loader-text">Initializing Space</div>
+    </div>
+
+    <main id="ui-layer">
+        
+        <nav>
+            <a href="#" class="logo interactive">G.</a>
+            <div class="nav-links">
+                <a href="#about" class="interactive">ABOUT</a>
+                <a href="#skills" class="interactive">SKILLS</a>
+                <a href="#education" class="interactive">EDUCATION</a>
+                <a href="#projects" class="interactive">PROJECTS</a>
+                <a href="#certifications" class="interactive">CERTIFICATIONS</a>
+                <a href="#contact" class="interactive">CONTACT</a>
+            </div>
+        </nav>
+
+        <aside class="social-sidebar">
+            <a href="https://www.linkedin.com/in/girivasan-b-k/" target="_blank" class="interactive"><i class="ph ph-linkedin-logo"></i></a>
+            <a href="https://github.com/girivasanb11-alt" target="_blank" class="interactive"><i class="ph ph-github-logo"></i></a>
+        </aside>
+
+        <a href="girivasan.resume.pdf" download class="resume-btn interactive">R</a>
+
+        <section id="hero">
+            <h1>GIRIVASAN B</h1>
+            <div class="subtitle">Electronics and Communication Engineering | Bridging Hardware & Software.</div>
+        </section>
+
+        <div class="profile-container">
+            <div class="profile-frame interactive">
+                <img src="giri.jpeg" alt="Girivasan B" class="profile-image">
+            </div>
+        </div>
+
+        <section id="about">
+            <h2>ABOUT ME</h2>
+            <div class="glass-panel interactive">
+                <p>Electronics and Communication Engineering student with a strong interest in solving real-world problems through technology. Possess basic knowledge of Python, C, C++, Java, HTML, and CSS, with hands-on experience in software development projects. A continuous learner eager to explore emerging technologies and bridge the gap between hardware and software. Seeking opportunities to learn, collaborate, and contribute to impactful technical projects.</p>
+            </div>
+        </section>
+
+        <section id="skills">
+            <h2>TECHNICAL SKILLS</h2>
+            <div class="skills-grid" style="margin-bottom: 4rem;">
+                <div class="glass-panel skill-item interactive">
+                    <h4>Programming Languages</h4>
+                    <p>Python, C, C++, Java</p>
+                </div>
+                <div class="glass-panel skill-item interactive">
+                    <h4>Web Technologies</h4>
+                    <p>HTML, CSS</p>
+                </div>
+                <div class="glass-panel skill-item interactive">
+                    <h4>Tools & Platforms</h4>
+                    <p>GitHub, VS Code</p>
+                </div>
+            </div>
+
+            <h2>SOFT SKILLS</h2>
+            <div class="skills-grid">
+                <div class="glass-panel skill-item interactive">
+                    <h4>Interpersonal & Professional</h4>
+                    <p>Problem Solving, Logical Thinking, Communication Skills, Teamwork & Collaboration, Design thinking, Time management, Continuous Learning</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="education">
+            <h2>EDUCATION</h2>
+            <div class="glass-panel interactive" style="margin-bottom: 2rem;">
+                <h3>B.E in Electronic Communication Engineering</h3>
+                <p>SNS College of Technology, Coimbatore</p>
+            </div>
+            <div class="glass-panel interactive">
+                <h3>Golden Gates Matric Higher Secondary School, Perambalur</h3>
+                <p>HSC: 86% (Computer Science) | SSLC: 84% (2023)</p>
+            </div>
+        </section>
+
+        <section id="projects">
+            <h2>PROJECTS</h2>
+            <div class="glass-panel interactive" style="margin-bottom: 2rem;">
+                <h3>Celestial Cataclysm: Destructive Forces Engine</h3>
+                <p>This interactive project uses real-time gesture recognition to empower users with the ability to manipulate cosmic phenomena like volcanoes, asteroids, and black holes through a dynamic particle system. By mapping complex hand movements to physics-based simulations, it creates a tactile and immersive experience that explores the raw power of natural and space-bound forces.</p>
+            </div>
+            <div class="glass-panel interactive">
+                <h3>Fitgen AI</h3>
+                <p>To build an AI agent that automatically creates personalized, safe, and effective workout and nutrition plans tailored to each user’s goals, preferences, health constraints, and lifestyle, and which adapts over time based on progress and feedback.</p>
+            </div>
+        </section>
+
+        <section id="certifications">
+            <h2>CERTIFICATIONS</h2>
+            <div class="cert-list">
+                <div class="cert-card interactive">AWS Cloud Practitioner Essentials</div>
+                <div class="cert-card interactive">Databricks Academy</div>
+                <div class="cert-card interactive">IBM - Enterprise Design Thinking Practitioner</div>
+                <div class="cert-card interactive">Skill India - Certificate in Full Stack Development</div>
+                <div class="cert-card interactive">IBM - Enterprise Data Science in Practice</div>
+                <div class="cert-card interactive">Certificate of Excellence - Python Course for Beginners</div>
+                <div class="cert-card interactive">Explore the GenAI Universe: SNS (Analytics Vidhya)</div>
+                <div class="cert-card interactive">Introduction to Vibe Coding: SNS</div>
+                <div class="cert-card interactive">Getting Started with Large Language Models: SNS</div>
+                <div class="cert-card interactive">Nano Banana: Image Magic with Gemini 2.3 Flash: SNS</div>
+                <div class="cert-card interactive">Introduction to Prompting with ChatGPT: SNS</div>
+            </div>
+        </section>
+
+        <section id="contact">
+            <h2>CONTACT</h2>
+            <div class="glass-panel interactive">
+                <div class="contact-info"><i class="ph ph-envelope-simple"></i> giri.b.ece.2025@snsct.org</div>
+                <div class="contact-info"><i class="ph ph-phone"></i> +916382939586</div>
+            </div>
+        </section>
+    </main>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import gsap from 'gsap';
+        import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+        gsap.registerPlugin(ScrollTrigger);
+
+        // --- Core Renderers ---
+        const mainCanvas = document.querySelector('#webgl-canvas');
+        const cursorCanvas = document.querySelector('#cursor-canvas'); 
+        const loaderCanvas = document.querySelector('#loader-canvas-container');
+        
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+
+        // --- Loader Scene (Black & White Particles) ---
+        const loaderScene = new THREE.Scene();
+        loaderScene.background = new THREE.Color(0x000000);
+        
+        const loaderCamera = new THREE.PerspectiveCamera(60, width / height, 0.1, 100);
+        loaderCamera.position.z = 10;
+        
+        const loaderRenderer = new THREE.WebGLRenderer({ canvas: loaderCanvas, antialias: true });
+        loaderRenderer.setSize(width, height);
+        loaderRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        // Loader Particles
+        const loaderParticleCount = 8000;
+        const loaderParticleGeo = new THREE.BufferGeometry();
+        const loaderParticlePos = new Float32Array(loaderParticleCount * 3);
+        const loaderParticleColors = new Float32Array(loaderParticleCount * 3);
+
+        for(let i = 0; i < loaderParticleCount * 3; i+=3) {
+            loaderParticlePos[i] = (Math.random() - 0.5) * 30;
+            loaderParticlePos[i+1] = (Math.random() - 0.5) * 30;
+            loaderParticlePos[i+2] = (Math.random() - 0.5) * 30;
+
+            const colorVal = Math.random() > 0.5 ? 1 : 0.2; 
+            loaderParticleColors[i] = colorVal;
+            loaderParticleColors[i+1] = colorVal;
+            loaderParticleColors[i+2] = colorVal;
+        }
+
+        loaderParticleGeo.setAttribute('position', new THREE.BufferAttribute(loaderParticlePos, 3));
+        loaderParticleGeo.setAttribute('color', new THREE.BufferAttribute(loaderParticleColors, 3));
+
+        const loaderParticleMat = new THREE.PointsMaterial({ 
+            size: 0.05, 
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.8
+        });
+        const loaderParticleSystem = new THREE.Points(loaderParticleGeo, loaderParticleMat);
+        loaderScene.add(loaderParticleSystem);
+
+        const coreGeo = new THREE.IcosahedronGeometry(1.5, 1);
+        const coreMat = new THREE.MeshStandardMaterial({
+            color: 0xffffff, wireframe: true, emissive: 0xffffff, emissiveIntensity: 0.2
+        });
+        const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+        loaderScene.add(coreMesh);
+
+        const lLight1 = new THREE.PointLight(0xffffff, 0, 50);
+        lLight1.position.set(2, 2, 2);
+        loaderScene.add(lLight1);
+        
+        const lLight2 = new THREE.PointLight(0xffffff, 0, 50);
+        lLight2.position.set(-2, -2, -2);
+        loaderScene.add(lLight2);
+
+
+        // --- Main Scene (Real Space Animation) ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x020204, 0.008); 
+        
+        const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 2000);
+        camera.position.z = 15;
+
+        // Main Background Renderer
+        const renderer = new THREE.WebGLRenderer({ canvas: mainCanvas, antialias: true, alpha: true });
+        renderer.setSize(width, height);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        // Cursor Overlay Renderer
+        const cursorRenderer = new THREE.WebGLRenderer({ canvas: cursorCanvas, antialias: true, alpha: true });
+        cursorRenderer.setSize(width, height);
+        cursorRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        const cursorScene = new THREE.Scene();
+
+        const ambientLight = new THREE.AmbientLight(0x1a1a3a, 0.5);
+        scene.add(ambientLight);
+
+        const lightningLight = new THREE.DirectionalLight(0xffffff, 0);
+        lightningLight.position.set(10, 20, -10);
+        scene.add(lightningLight);
+
+        // Advanced Space Environment (Starfield + Deep Nebulas)
+        const spaceGroup = new THREE.Group();
+        scene.add(spaceGroup);
+
+        // Layer 1: Bright Stars
+        const starCount = 5000;
+        const starGeo = new THREE.BufferGeometry();
+        const starPos = new Float32Array(starCount * 3);
+        const starVelocities = []; 
+        
+        for(let i = 0; i < starCount * 3; i+=3) {
+            starPos[i] = (Math.random() - 0.5) * 400; 
+            starPos[i+1] = (Math.random() - 0.5) * 400; 
+            starPos[i+2] = (Math.random() - 0.5) * 800 - 100; 
+            
+            starVelocities.push({
+                z: (Math.random() * 0.5) + 0.1 
+            });
+        }
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.8, transparent: true, opacity: 0.8 });
+        const starSystem = new THREE.Points(starGeo, starMat);
+        spaceGroup.add(starSystem);
+
+        // Layer 2: Deep Blue/Purple Space Dust
+        const dustCount = 2000;
+        const dustGeo = new THREE.BufferGeometry();
+        const dustPos = new Float32Array(dustCount * 3);
+        for(let i = 0; i < dustCount * 3; i++) {
+            dustPos[i] = (Math.random() - 0.5) * 300; 
+        }
+        dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+        const dustMat = new THREE.PointsMaterial({ color: 0x4c1d95, size: 2.5, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending });
+        const dustSystem = new THREE.Points(dustGeo, dustMat);
+        spaceGroup.add(dustSystem);
+
+
+        // --- Math-Powered 3D Cursor ---
+        const cursorGeo = new THREE.OctahedronGeometry(0.2, 0);
+        const cursorMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, wireframe: true });
+        const cursorMesh = new THREE.Mesh(cursorGeo, cursorMat);
+        
+        // Add the cursor strictly to the overlay scene so it renders above DOM elements
+        cursorScene.add(cursorMesh);
+
+        const mouse = new THREE.Vector2(-10, -10);
+        const targetMouse = new THREE.Vector2(-10, -10);
+        let lastMousePos = new THREE.Vector2(-10, -10);
+        let isHovering = false;
+
+        window.addEventListener('mousemove', (e) => {
+            targetMouse.x = (e.clientX / width) * 2 - 1;
+            targetMouse.y = -(e.clientY / height) * 2 + 1;
+        });
+
+        document.querySelectorAll('.interactive').forEach(el => {
+            el.addEventListener('mouseenter', () => isHovering = true);
+            el.addEventListener('mouseleave', () => isHovering = false);
+        });
+
+        // --- Scroll Tracking for Camera Shake ---
+        let currentScrollY = 0;
+        let scrollVelocity = 0;
+        let lastScrollY = window.scrollY;
+
+        window.addEventListener('scroll', () => {
+            currentScrollY = window.scrollY;
+            scrollVelocity = Math.abs(currentScrollY - lastScrollY);
+            lastScrollY = currentScrollY;
+        });
+
+        // --- Scroll Animations (GSAP) ---
+        gsap.to(camera.position, {
+            z: -120, 
+            ease: "none",
+            scrollTrigger: {
+                trigger: document.body,
+                start: "top top",
+                end: "bottom bottom",
+                scrub: 1.5
+            }
+        });
+        
+        gsap.to(camera.rotation, {
+            z: Math.PI * 0.15,
+            ease: "none",
+            scrollTrigger: {
+                trigger: document.body,
+                start: "top top",
+                end: "bottom bottom",
+                scrub: 2
+            }
+        });
+
+
+        // --- Loading Sequence Logic ---
+        const percentEl = document.getElementById('loader-percentage');
+        let progress = 0;
+        let isLoading = true;
+
+        const loadInterval = setInterval(() => {
+            progress += Math.random() * 10;
+            if (progress >= 100) {
+                progress = 100;
+                clearInterval(loadInterval);
+                executeTransition();
+            }
+            percentEl.textContent = Math.floor(progress);
+        }, 120);
+
+        function executeTransition() {
+            isLoading = false;
+            const loaderDiv = document.getElementById('loader');
+            
+            gsap.to(coreMesh.scale, { x: 5, y: 5, z: 5, duration: 1, ease: "power2.in" });
+            gsap.to(coreMat, { opacity: 0, duration: 1 });
+
+            gsap.to(loaderParticleSystem.scale, { x: 3, y: 3, z: 3, duration: 1.5, ease: "power2.out" });
+            
+            gsap.to(loaderDiv, { 
+                opacity: 0, 
+                duration: 1.5,
+                delay: 0.5,
+                onComplete: () => {
+                    loaderDiv.style.display = 'none';
+                    loaderParticleGeo.dispose();
+                    loaderParticleMat.dispose();
+                    coreGeo.dispose();
+                    coreMat.dispose();
+                    document.getElementById('ui-layer').style.opacity = 1;
+                }
+            });
+        }
+
+        const baseCameraPos = new THREE.Vector3();
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+
+            if (isLoading) {
+                loaderParticleSystem.rotation.y = time * 0.1;
+                coreMesh.rotation.x = time * 0.5;
+                coreMesh.rotation.y = time * 0.8;
+
+                if (Math.random() > 0.95) {
+                    lLight1.intensity = 50 + Math.random() * 100;
+                    lLight2.intensity = 50 + Math.random() * 100;
+                } else {
+                    lLight1.intensity = THREE.MathUtils.lerp(lLight1.intensity, 0, 0.2);
+                    lLight2.intensity = THREE.MathUtils.lerp(lLight2.intensity, 0, 0.2);
+                }
+
+                loaderRenderer.render(loaderScene, loaderCamera);
+                return; 
+            }
+
+            // Main Scene Lightning
+            if (Math.random() > 0.985) { 
+                lightningLight.intensity = 15 + Math.random() * 40;
+                if(Math.random() > 0.5) {
+                    document.body.style.backgroundColor = '#0a0a1a';
+                    setTimeout(() => document.body.style.backgroundColor = 'var(--bg-dark)', 60);
+                }
+            } else {
+                lightningLight.intensity = THREE.MathUtils.lerp(lightningLight.intensity, 0, 0.1);
+            }
+
+            // Real Space Animation Logic
+            spaceGroup.rotation.z = time * 0.01;
+            spaceGroup.rotation.y = time * 0.005;
+            
+            const positions = starGeo.attributes.position.array;
+            for(let i = 0; i < starCount; i++) {
+                const i3 = i * 3;
+                positions[i3 + 2] += starVelocities[i].z; 
+                
+                if (positions[i3 + 2] > camera.position.z + 50) {
+                    positions[i3 + 2] = camera.position.z - 600;
+                }
+            }
+            starGeo.attributes.position.needsUpdate = true;
+
+            // Scroll-Based Camera Shake
+            if (scrollVelocity > 0.5) {
+                const shakeIntensity = Math.min(scrollVelocity * 0.006, 0.6);
+                camera.position.x += (Math.random() - 0.5) * shakeIntensity;
+                camera.position.y += (Math.random() - 0.5) * shakeIntensity;
+                scrollVelocity *= 0.9; 
+            } else {
+                camera.position.x = THREE.MathUtils.lerp(camera.position.x, 0, 0.1);
+                camera.position.y = THREE.MathUtils.lerp(camera.position.y, 0, 0.1);
+            }
+
+            // Cursor Math Logic
+            mouse.lerp(targetMouse, 0.15);
+            const dx = mouse.x - lastMousePos.x;
+            const dy = mouse.y - lastMousePos.y;
+            const velocity = Math.sqrt(dx*dx + dy*dy);
+            lastMousePos.copy(mouse);
+
+            const vector = new THREE.Vector3(mouse.x, mouse.y, 0.5);
+            vector.unproject(camera);
+            const dir = vector.sub(camera.position).normalize();
+            cursorMesh.position.copy(camera.position.clone().add(dir.multiplyScalar(4)));
+
+            // Cursor Morphing & Color shifts
+            if (isHovering) {
+                cursorMat.color.setHex(0xe0f2fe);
+                cursorMesh.scale.lerp(new THREE.Vector3(2, 2, 2), 0.2);
+                cursorMesh.rotation.x += 0.05;
+                cursorMesh.rotation.y += 0.05;
+            } else {
+                const hslColor = new THREE.Color().setHSL((time * 0.1) % 1, 1, 0.5);
+                cursorMat.color.copy(hslColor);
+                
+                const stretch = 1 + velocity * 20;
+                const squash = Math.max(0.3, 1 - velocity * 8);
+                cursorMesh.scale.lerp(new THREE.Vector3(squash, stretch, 1), 0.2);
+                
+                if (velocity > 0.001) {
+                    cursorMesh.rotation.z = Math.atan2(dy, dx) - camera.rotation.z;
+                } else {
+                    cursorMesh.rotation.x += 0.01;
+                    cursorMesh.rotation.y += 0.02;
+                }
+            }
+
+            // Render background, then render cursor on top
+            renderer.render(scene, camera);
+            cursorRenderer.render(cursorScene, camera); 
+        }
+
+        window.addEventListener('resize', () => {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+            cursorRenderer.setSize(width, height); 
+
+            if(isLoading) {
+                loaderCamera.aspect = width / height;
+                loaderCamera.updateProjectionMatrix();
+                loaderRenderer.setSize(width, height);
+            }
+        });
+
+        animate();
+    </script>
+</body>
+</html>
